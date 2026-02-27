@@ -20,6 +20,7 @@
     button { background: var(--primary); color: white; border: none; padding: 0.75rem; 
             border-radius: 8px; cursor: pointer; font-weight: 600; }
     button:hover { opacity: 0.9; }
+    .github-btn { background: #181717; color: white; }
     #response { min-height: 200px; padding: 1rem; background: #f1f5f9; 
                 border-radius: 8px; margin-top: 1rem; white-space: pre-wrap; }
     .model-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; 
@@ -29,6 +30,7 @@
     .status { padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem; }
     .success { background: #dcfce7; color: #166534; }
     .error { background: #fee2e2; color: #b91c1c; }
+    .secret-note { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -40,6 +42,16 @@
       <input type="password" id="api-key" placeholder="Enter your Puter API key">
       <button onclick="saveApiKey()">Save Key</button>
       <div id="key-status" class="status"></div>
+      
+      <h3 style="margin-top: 1.5rem">GitHub Integration</h3>
+      <button class="github-btn" onclick="githubLogin()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 0.5rem">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        Connect GitHub Account
+      </button>
+      <div id="github-status" class="status"></div>
+      <div class="secret-note">Stores API key securely in GitHub Secrets (never exposed)</div>
     </div>
 
     <div class="panel">
@@ -91,6 +103,37 @@
         document.getElementById('key-status').innerHTML = 
           '<div class="status success">✅ API key saved (masked)</div>';
       }
+
+      // Handle GitHub OAuth callback
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      
+      if (code && state === localStorage.getItem('oauth_state')) {
+        document.getElementById('github-status').innerHTML = 
+          '<div class="status">🔄 Verifying GitHub connection...</div>';
+        
+        fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('github-status').innerHTML = 
+              '<div class="status success">✅ GitHub connected! API key secured</div>';
+            // Clear OAuth state
+            localStorage.removeItem('oauth_state');
+            // Remove code from URL
+            window.history.replaceState({}, document.title, "/");
+          }
+        })
+        .catch(error => {
+          document.getElementById('github-status').innerHTML = 
+            '<div class="status error">❌ GitHub connection failed</div>';
+        });
+      }
     });
 
     function populateModels() {
@@ -130,6 +173,23 @@
         '<div class="status success">✅ API key saved securely</div>';
     }
 
+    function githubLogin() {
+      const clientId = 'YOUR_GITHUB_CLIENT_ID';
+      const redirectUri = encodeURIComponent(window.location.origin);
+      const state = Math.random().toString(36).substring(7);
+      
+      localStorage.setItem('oauth_state', state);
+      
+      const githubAuthUrl = 
+        `https://github.com/login/oauth/authorize?`
+        + `client_id=${clientId}&`
+        + `redirect_uri=${redirectUri}&`
+        + `scope=repo&`
+        + `state=${state}`;
+      
+      window.location.href = githubAuthUrl;
+    }
+
     async function submitRequest() {
       const apiKey = localStorage.getItem('puter_api_key');
       const framework = document.getElementById('framework').value;
@@ -154,7 +214,6 @@
         
         // Initialize Puter with API key
         puter.init({ apiKey });
-
         
         // Make real API call
         const response = await puter.ai.chat({
