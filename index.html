@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puter API Explorer</title>
+  <style>
+    :root { --primary: #6366f1; --dark: #1e293b; }
+    body { font-family: 'Inter', system-ui; max-width: 1000px; margin: 0 auto; padding: 2rem; 
+           background: #f8fafc; color: var(--dark); }
+    .container { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .panel { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h1 { color: var(--primary); margin-bottom: 1.5rem; }
+    textarea { width: 100%; min-height: 150px; padding: 1rem; 
+              border: 1px solid #e2e8f0; border-radius: 8px; }
+    select { width: 100%; padding: 0.75rem; border-radius: 8px; 
+            border: 1px solid #e2e8f0; margin: 0.5rem 0; }
+    button { background: var(--primary); color: white; border: none; padding: 0.75rem; 
+            border-radius: 8px; cursor: pointer; font-weight: 600; }
+    button:hover { opacity: 0.9; }
+    #response { min-height: 200px; padding: 1rem; background: #f1f5f9; 
+                border-radius: 8px; margin-top: 1rem; white-space: pre-wrap; }
+    .model-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; 
+                 margin-bottom: 1rem; cursor: pointer; transition: all 0.2s; }
+    .model-card:hover { border-color: var(--primary); }
+    .selected { border-color: var(--primary); background: #eef2ff; }
+  </style>
+</head>
+<body>
+  <h1>Puter API Explorer</h1>
+  
+  <div class="container">
+    <div class="panel">
+      <h2>Request</h2>
+      <select id="framework">
+        <option value="react">React</option>
+        <option value="nextjs">Next.js</option>
+        <option value="angular">Angular</option>
+        <option value="vue">Vue.js</option>
+        <option value="svelte">Svelte</option>
+        <option value="astro">Astro</option>
+      </select>
+      
+      <div id="models-container">
+        <!-- Models will be populated here -->
+      </div>
+      
+      <textarea id="prompt" placeholder="Enter your prompt..."></textarea>
+      <button onclick="submitRequest()">Send Request</button>
+    </div>
+    
+    <div class="panel">
+      <h2>Response</h2>
+      <div id="response">API response will appear here...</div>
+    </div>
+  </div>
+
+  <script>
+    // Framework-specific models (based on Puter documentation)
+    const MODELS = {
+      react: ['react-basic', 'react-pro', 'react-streaming'],
+      nextjs: ['next-ssr', 'next-api', 'next-edge'],
+      angular: ['angular-ivy', 'angular-standalone'],
+      vue: ['vue-3', 'vue-2-compat'],
+      svelte: ['svelte-4', 'svelte-5-alpha'],
+      astro: ['astro-3', 'astro-content']
+    };
+
+    // Initialize UI
+    document.addEventListener('DOMContentLoaded', () => {
+      populateModels();
+      document.getElementById('framework').addEventListener('change', populateModels);
+    });
+
+    function populateModels() {
+      const framework = document.getElementById('framework').value;
+      const container = document.getElementById('models-container');
+      container.innerHTML = '';
+      
+      MODELS[framework].forEach((model, index) => {
+        const card = document.createElement('div');
+        card.className = 'model-card' + (index === 0 ? ' selected' : '');
+        card.dataset.model = model;
+        card.innerHTML = `<strong>${model}</strong><br>
+                          Framework: ${framework}<br>
+                          Latency: ~${50 + index*30}ms`;
+        
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.model-card').forEach(c => 
+            c.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+        
+        container.appendChild(card);
+      });
+    }
+
+    async function submitRequest() {
+      const framework = document.getElementById('framework').value;
+      const selectedModel = document.querySelector('.model-card.selected');
+      const prompt = document.getElementById('prompt').value;
+      const responseDiv = document.getElementById('response');
+      
+      if (!prompt) {
+        responseDiv.textContent = '⚠️ Please enter a prompt';
+        return;
+      }
+
+      responseDiv.textContent = '🔄 Processing...';
+      
+      try {
+        // Simulate API call (real implementation would use Puter.js)
+        const model = selectedModel ? selectedModel.dataset.model : MODELS[framework][0];
+        
+        // In real implementation:
+        // import puter from '@heyputer/puter.js';
+        // const response = await puter.ai.chat({ model, prompt });
+        
+        // Simulated response
+        setTimeout(() => {
+          responseDiv.innerHTML = `
+            <strong>Framework:</strong> ${framework}<br>
+            <strong>Model:</strong> ${model}<br>
+            <strong>Prompt:</strong> ${prompt}<br><br>
+            <strong>Simulated Response:</strong><br>
+            This is a simulated response from the ${model} model. 
+            In a real implementation, this would show the actual AI response 
+            from the Puter API. The Puter.js library would handle the 
+            framework-specific integration automatically.
+          `;
+        }, 800);
+      } catch (error) {
+        responseDiv.textContent = `❌ Error: ${error.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
