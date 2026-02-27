@@ -15,12 +15,9 @@
               border: 1px solid #e2e8f0; border-radius: 8px; }
     select { width: 100%; padding: 0.75rem; border-radius: 8px; 
             border: 1px solid #e2e8f0; margin: 0.5rem 0; }
-    input[type="password"] { width: 100%; padding: 0.75rem; border-radius: 8px; 
-                            border: 1px solid #e2e8f0; }
     button { background: var(--primary); color: white; border: none; padding: 0.75rem; 
             border-radius: 8px; cursor: pointer; font-weight: 600; }
     button:hover { opacity: 0.9; }
-    .github-btn { background: #181717; color: white; }
     #response { min-height: 200px; padding: 1rem; background: #f1f5f9; 
                 border-radius: 8px; margin-top: 1rem; white-space: pre-wrap; }
     .model-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; 
@@ -30,30 +27,17 @@
     .status { padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem; }
     .success { background: #dcfce7; color: #166534; }
     .error { background: #fee2e2; color: #b91c1c; }
-    .secret-note { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; }
+    .history-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; 
+                  margin-bottom: 0.5rem; cursor: pointer; }
+    .history-item:hover { background: #f1f5f9; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; }
+    .clear-history { background: #ef4444; padding: 0.25rem 0.5rem; font-size: 0.85rem; }
   </style>
 </head>
 <body>
   <h1>Puter API Explorer</h1>
   
   <div class="container">
-    <div class="panel">
-      <h2>Authentication</h2>
-      <input type="password" id="api-key" placeholder="Enter your Puter API key">
-      <button onclick="saveApiKey()">Save Key</button>
-      <div id="key-status" class="status"></div>
-      
-      <h3 style="margin-top: 1.5rem">GitHub Integration</h3>
-      <button class="github-btn" onclick="githubLogin()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 0.5rem">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-        Connect GitHub Account
-      </button>
-      <div id="github-status" class="status"></div>
-      <div class="secret-note">Stores API key securely in GitHub Secrets (never exposed)</div>
-    </div>
-
     <div class="panel">
       <h2>Request</h2>
       <select id="framework">
@@ -77,9 +61,16 @@
       <h2>Response</h2>
       <div id="response">API response will appear here...</div>
     </div>
+
+    <div class="panel" style="grid-column: 1 / -1;">
+      <div class="history-header">
+        <h2>Request History</h2>
+        <button class="clear-history" onclick="clearHistory()">Clear</button>
+      </div>
+      <div id="history-container"></div>
+    </div>
   </div>
 
-  <script src="https://unpkg.com/@heyputer/puter.js@latest/dist/puter.min.js"></script>
   <script>
     // Framework-specific models
     const MODELS = {
@@ -95,45 +86,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       populateModels();
       document.getElementById('framework').addEventListener('change', populateModels);
-      
-      // Load saved API key
-      const savedKey = localStorage.getItem('puter_api_key');
-      if (savedKey) {
-        document.getElementById('api-key').value = '••••••••••••••••';
-        document.getElementById('key-status').innerHTML = 
-          '<div class="status success">✅ API key saved (masked)</div>';
-      }
-
-      // Handle GitHub OAuth callback
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const state = urlParams.get('state');
-      
-      if (code && state === localStorage.getItem('oauth_state')) {
-        document.getElementById('github-status').innerHTML = 
-          '<div class="status">🔄 Verifying GitHub connection...</div>';
-        
-        fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            document.getElementById('github-status').innerHTML = 
-              '<div class="status success">✅ GitHub connected! API key secured</div>';
-            // Clear OAuth state
-            localStorage.removeItem('oauth_state');
-            // Remove code from URL
-            window.history.replaceState({}, document.title, "/");
-          }
-        })
-        .catch(error => {
-          document.getElementById('github-status').innerHTML = 
-            '<div class="status error">❌ GitHub connection failed</div>';
-        });
-      }
+      loadHistory();
     });
 
     function populateModels() {
@@ -159,49 +112,13 @@
       });
     }
 
-    function saveApiKey() {
-      const apiKey = document.getElementById('api-key').value;
-      if (!apiKey) {
-        document.getElementById('key-status').innerHTML = 
-          '<div class="status error">⚠️ Please enter an API key</div>';
-        return;
-      }
-
-      localStorage.setItem('puter_api_key', apiKey);
-      document.getElementById('api-key').value = '••••••••••••••••';
-      document.getElementById('key-status').innerHTML = 
-        '<div class="status success">✅ API key saved securely</div>';
-    }
-
-    function githubLogin() {
-      const clientId = 'YOUR_GITHUB_CLIENT_ID';
-      const redirectUri = encodeURIComponent(window.location.origin);
-      const state = Math.random().toString(36).substring(7);
-      
-      localStorage.setItem('oauth_state', state);
-      
-      const githubAuthUrl = 
-        `https://github.com/login/oauth/authorize?`
-        + `client_id=${clientId}&`
-        + `redirect_uri=${redirectUri}&`
-        + `scope=repo&`
-        + `state=${state}`;
-      
-      window.location.href = githubAuthUrl;
-    }
-
     async function submitRequest() {
-      const apiKey = localStorage.getItem('puter_api_key');
       const framework = document.getElementById('framework').value;
       const selectedModel = document.querySelector('.model-card.selected');
       const prompt = document.getElementById('prompt').value;
       const responseDiv = document.getElementById('response');
+      const timestamp = Date.now();
       
-      if (!apiKey) {
-        responseDiv.innerHTML = '<div class="status error">⚠️ Please save your API key first</div>';
-        return;
-      }
-
       if (!prompt) {
         responseDiv.innerHTML = '<div class="status error">⚠️ Please enter a prompt</div>';
         return;
@@ -212,31 +129,101 @@
       try {
         const model = selectedModel ? selectedModel.dataset.model : MODELS[framework][0];
         
-        // Initialize Puter with API key
-        puter.init({ apiKey });
-        
-        // Make real API call
-        const response = await puter.ai.chat({
-          model,
-          prompt
+        // Send request to backend proxy
+        const apiResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, prompt })
         });
 
+        if (!apiResponse.ok) {
+          const error = await apiResponse.json();
+          throw new Error(error.error || 'API request failed');
+        }
+
+        const { response } = await apiResponse.json();
         
+        // Save to history
+        saveToHistory({
+          framework,
+          model,
+          prompt,
+          timestamp
+        }, response);
+
         // Display response
         responseDiv.innerHTML = `
-          <div class="status success">✅ Success (200)</div>
+          <div class="status success">✅ Success (200) - ${new Date(timestamp).toLocaleTimeString()}</div>
+          <strong>Framework:</strong> ${framework}<br>
           <strong>Model:</strong> ${model}<br>
-          <strong>Prompt:</strong> ${prompt}<br><br>
+          <strong>Prompt:</strong> ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}<br><br>
           <strong>Response:</strong><br>
           ${response}
         `;
       } catch (error) {
         responseDiv.innerHTML = `
-          <div class="status error">❌ Error (${error.status || 'API'})</div>
-          <strong>Message:</strong> ${error.message}<br>
-          <small>Check your API key or network connection</small>
+          <div class="status error">❌ Error</div>
+          <strong>Message:</strong> ${error.message}
         `;
       }
+    }
+
+    function saveToHistory(request, response) {
+      let history = JSON.parse(localStorage.getItem('puter_history') || '[]');
+      history.unshift({ request, response });
+      // Keep last 10 entries
+      if (history.length > 10) history.pop();
+      localStorage.setItem('puter_history', JSON.stringify(history));
+      loadHistory();
+    }
+
+    function loadHistory() {
+      const container = document.getElementById('history-container');
+      const history = JSON.parse(localStorage.getItem('puter_history') || '[]');
+      
+      if (history.length === 0) {
+        container.innerHTML = '<div class="status">No requests yet - try sending your first request!</div>';
+        return;
+      }
+      
+      container.innerHTML = history.map((item, index) => `
+        <div class="history-item" onclick="replayRequest(${index})">
+          <div style="font-weight: 600; margin-bottom: 0.25rem;">
+            ${item.request.prompt.substring(0, 60)}${item.request.prompt.length > 60 ? '...' : ''}
+          </div>
+          <div style="display: flex; justify-content: space-between; color: #64748b; font-size: 0.85rem;">
+            <span>${item.request.framework} • ${item.request.model}</span>
+            <span>${new Date(item.request.timestamp).toLocaleTimeString()}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function replayRequest(index) {
+      const history = JSON.parse(localStorage.getItem('puter_history') || '[]');
+      if (index < history.length) {
+        const item = history[index];
+        document.getElementById('prompt').value = item.request.prompt;
+        
+        // Select the correct framework
+        document.getElementById('framework').value = item.request.framework;
+        populateModels();
+        
+        // Select the correct model
+        setTimeout(() => {
+          const modelCards = document.querySelectorAll('.model-card');
+          modelCards.forEach(card => {
+            if (card.dataset.model === item.request.model) {
+              card.click();
+            }
+          });
+        }, 50);
+      }
+    }
+
+    function clearHistory() {
+      localStorage.removeItem('puter_history');
+      loadHistory();
     }
   </script>
 </body>

@@ -1,9 +1,16 @@
-const fetch = require('node-fetch');
 const { createPublicKey, sign } = require('crypto');
+const sodium = require('libsodium-wrappers');
 
 module.exports = async (req, res) => {
   try {
     const { code, apiKey } = req.body;
+
+    if (!apiKey) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing API key' 
+      });
+    }
 
     // Exchange GitHub OAuth code for access token
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
@@ -34,14 +41,13 @@ module.exports = async (req, res) => {
 
     const { key_id, key } = await publicKeyResponse.json();
 
-    // Encrypt the API key using GitHub's public key
-    const messageBytes = Buffer.from(apiKey);
-    const keyBytes = Buffer.from(key, 'base64');
+    // Encrypt API key using GitHub's public key
+    await sodium.ready;
+    const binkey = sodium.from_base64(key, sodium.base64_variants.ORIGINAL);
+    const binsec = sodium.from_string(apiKey);
     
-    // Simplified encryption (real implementation requires libsodium)
-    // In production, use '@octokit/auth' or proper encryption
-    const encryptedBytes = messageBytes; // Placeholder for actual encryption
-    const encryptedValue = encryptedBytes.toString('base64');
+    const encryptedBytes = sodium.crypto_box_seal(binsec, binkey);
+    const encryptedValue = sodium.to_base64(encryptedBytes, sodium.base64_variants.ORIGINAL);
 
     // Save as GitHub Secret
     const saveResponse = await fetch(
