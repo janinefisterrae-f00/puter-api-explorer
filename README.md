@@ -1,20 +1,18 @@
-# Puter API Explorer - Local Setup
+# Puter API Explorer - Local Server Setup
 
-Run the entire Puter API Explorer stack **locally with Docker**.
+Run the Puter API Explorer **directly on your machine** without Docker.
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone the repository
- git clone https://github.com/janinefisterrae-f00/puter-api-explorer.git
- cd puter-api-explorer
+# 1. Install dependencies
+npm install
 
 # 2. Configure your API key
- cp .env.example .env
- nano .env  # Insert your PUTER_API_KEY
+echo "PUTER_API_KEY=your_puter_api_key" > .env
 
-# 3. Start with convenience script
- ./start.sh
+# 3. Start the server
+node server.js
 ```
 
 ## 🌐 Access the Application
@@ -27,27 +25,14 @@ curl -X POST http://localhost:3000/api/chat \
 ```
 
 ## 🔧 Configuration
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PUTER_API_KEY` | ✅ | Your [Puter API key](https://app.puter.com/account/api) |
-| `PORT` | ❌ | Server port (default: 3000) |
-
-## 🐳 Docker Compose (Alternative)
-```yaml
-# docker-compose.yml
-version: '3'
-services:
-  explorer:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
+Create `.env` file with:
+```env
+PUTER_API_KEY=your_api_key_here
+PORT=3000
 ```
 
 ## 📌 Notes
-- No GitHub OAuth needed for local testing
-- All API calls go directly to Puter.com
-- Data is stored in browser localStorage (no database required)
-- Use `./start.sh` for simplified startup
-- Press Ctrl+C to stop the container (keeps data intact)
+- Requires Node.js 20+
+- No Docker needed
+- Data stored in browser localStorage
+- GitHub OAuth not required for local testing
